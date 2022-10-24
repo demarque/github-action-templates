@@ -1,0 +1,135 @@
+name: State Unlock Template
+
+on:
+  workflow_call:
+    inputs:
+      REF:
+        required: true
+        type: string
+      GCR_HOSTNAME:
+        required: true
+        type: string
+      GCP_PROJECT:
+        required: true
+        type: string
+      IMAGE:
+        required: true
+        type: string
+      MODULE_ROOT:
+        required: true
+        type: string
+      MODULE_NAME:
+        required: true
+        type: string
+      PRODUCT_NAME:
+        required: true
+        type: string
+      TARGET_ENV:
+        required: true
+        type: string
+      GITHUB_SHA:
+        required: true
+        type: string
+      REPOSITORY_NAME:
+        required: true
+        type: string
+    secrets:
+      GCP_SA_KEY:
+        required: true
+      GH_CI_CD_TOKEN:
+        required: true
+      SLACK_WEBHOOK_URL:
+        required: true
+
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-20.04
+
+    outputs:
+      digest-output: ${{ steps.get-digest.outputs.digest }}
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+        with:
+          ref: ${{ inputs.REF }}
+
+      - name: GCloud Authentification
+        uses: "google-github-actions/auth@v0"
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Setup Cloud SDK
+        uses: "google-github-actions/setup-gcloud@v0"
+
+      - name: Google Cloud Docker Auth
+        run: |-
+          gcloud auth configure-docker
+
+      - name: Build Docker Image
+        run: |
+          docker build -t ${{ inputs.GCR_HOSTNAME }}/${{ inputs.GCP_PROJECT }}/${{ inputs.IMAGE }}:${{ inputs.GITHUB_SHA }} .
+
+      - name: Push Docker Image
+        run: |
+          docker push ${{ inputs.GCR_HOSTNAME }}/${{ inputs.GCP_PROJECT }}/${{ inputs.IMAGE }}:${{ inputs.GITHUB_SHA }}
+
+      - name: Get Digest
+        id: get-digest
+        run: |
+          docker inspect --format='{{index (split (index .RepoDigests 0) "@") 1}}' ${{ inputs.GCR_HOSTNAME }}/${{ inputs.GCP_PROJECT }}/${{ inputs.IMAGE }}:${{ inputs.GITHUB_SHA }}
+          echo "digest=$(docker inspect --format='{{index (split (index .RepoDigests 0) "@") 1}}' ${{ inputs.GCR_HOSTNAME }}/${{ inputs.GCP_PROJECT }}/${{ inputs.IMAGE }}:${{ inputs.GITHUB_SHA }})" >> $GITHUB_OUTPUT
+
+  create-infra-pr:
+    name: Create infra PR
+    runs-on: ubuntu-20.04
+    needs: build
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+        with:
+          repository: demarque/demarque-infra
+          token: ${{ secrets.GH_CI_CD_TOKEN }}
+          ref: ${{ inputs.REF }}
+          path: infra
+
+      - name: Update Helm Chart Values
+        run: |
+          cd infra
+          sed -i 's/  tag: [a-zA-Z0-9]*/  tag: '${{ inputs.GITHUB_SHA }}'/g' modules/${{ inputs.MODULE_ROOT }}/${{ inputs.MODULE_NAME }}/charts/${{ inputs.PRODUCT_NAME }}/${{ inputs.TARGET_ENV }}*.yaml
+          sed -i 's/  digest: sha256:[a-zA-Z0-9]*/  digest: '${{needs.build.outputs.digest-output}}'/g' modules/${{ inputs.MODULE_ROOT }}/${{ inputs.MODULE_NAME }}/charts/${{ inputs.PRODUCT_NAME }}/${{ inputs.TARGET_ENV }}*.yaml
+
+      - name: Open Infra PR
+        uses: peter-evans/create-pull-request@v4.2.0
+        with:
+          token: ${{ secrets.GH_CI_CD_TOKEN }}
+          path: infra
+          committer: Github Actions <infra@demarque.com>
+          author: Github Actions <infra@demarque.com>
+          branch: deploy/${{ inputs.TARGET_ENV }}/${{ inputs.GITHUB_SHA }}
+          commit-message: "chore: ${{ inputs.TARGET_ENV }} - deploy ${{ inputs.REPOSITORY_NAME }} ${{ inputs.GITHUB_SHA }}"
+          title: ${{ inputs.TARGET_ENV }} - deploy ${{ inputs.REPOSITORY_NAME }} ${{ inputs.GITHUB_SHA }}
+          body: ${{ inputs.TARGET_ENV }} - deploy ${{ inputs.REPOSITORY_NAME }} ${{ inputs.GITHUB_SHA }}
+          labels: automerge
+
+  finalize:
+    name: Finalize
+    runs-on: ubuntu-20.04
+    needs: create-infra-pr
+    if: ${{ failure() }}
+
+    steps:
+      - name: Fetch Workflow Conclusion
+        uses: technote-space/workflow-conclusion-action@v3
+
+      - name: Notify
+        uses: 8398a7/action-slack@v3
+        with:
+          status: ${{ env.WORKFLOW_CONCLUSION }}
+          fields: repo,message,commit,author,action,eventName,ref,workflow
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_CI_CD_TOKEN }}
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+
+
