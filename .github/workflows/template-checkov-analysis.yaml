@@ -1,0 +1,14 @@
+name: Checkov Analysis
+
+on:
+  workflow_call:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      - name: Test with Checkov
+        uses: bridgecrewio/checkov-action@v12.1784.0
