@@ -1,0 +1,66 @@
+name: Validate K8s Api Versions Prod Europe
+
+on:
+  workflow_call:
+    inputs:
+      CLUSTER_ENV:
+        required: true
+        type: string
+      CLUSTER_LOCATION:
+        required: true
+        type: string
+      ZONE:
+        required: true
+        type: string
+      RUNNER:
+        required: true
+        type: string
+      REF:
+        required: true
+        type: string
+    secrets:
+      GCP_SA_KEY:
+        required: true
+
+jobs:
+  validate:
+    name: Validate K8s Api Versions
+    runs-on: ${{ inputs.RUNNER }}
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3.1.0
+        with:
+          ref: ${{ inputs.REF }}
+
+      - name: GCloud Authentification
+        uses: google-github-actions/auth@v0.8.3
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Prepare Credentials
+        run: |
+          mkdir -p creds
+          ln -s $GOOGLE_APPLICATION_CREDENTIALS creds/serviceaccount.json
+
+      - name: Google Cloud Docker Auth
+        run: |
+          gcloud auth configure-docker
+
+      - name: Get Cluster Credentials
+        run: |
+          gcloud container clusters get-credentials ${{ inputs.CLUSTER_ENV }}-${{ inputs.CLUSTER_LOCATION }} --zone ${{ inputs.ZONE }} --project demarque
+
+      - name: Install Helm
+        uses: azure/setup-helm@v3.3
+        with:
+          version: 3.9.0
+
+      - name: Install Map Kube Apis
+        run: |
+          helm plugin install https://github.com/helm/helm-mapkubeapis
+        continue-on-error: true
+
+      - name: Test Api Versions
+        run: |
+          ./scripts/k8s_apis_validation

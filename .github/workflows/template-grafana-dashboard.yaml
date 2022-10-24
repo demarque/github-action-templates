@@ -1,0 +1,99 @@
+name: Template Grafana Dashboard
+
+on:
+  workflow_call:
+    inputs:
+      CLUSTER_ENV:
+        required: true
+        type: string
+      CLUSTER_LOCATION:
+        required: true
+        type: string
+      RUNNER:
+        required: true
+        type: string
+      REF:
+        required: true
+        type: string
+    secrets:
+      GCP_SA_KEY:
+        required: true
+      GH_CI_CD_TOKEN:
+        required: true
+      SLACK_WEBHOOK_URL:
+        required: true
+
+jobs:
+  deploy_grafana_dashboard:
+    name: Deploy Grafana Dashboard
+    runs-on: ${{ inputs.RUNNER }}
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3.1.0
+        with:
+          ref: ${{ inputs.REF }}
+
+      - name: GCloud Authentification
+        uses: google-github-actions/auth@v0.8.3
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Prepare credentials
+        run: |
+          mkdir -p creds
+          ln -s $GOOGLE_APPLICATION_CREDENTIALS creds/serviceaccount.json
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2.0.2
+        with:
+          terraform_version: 1.2.3
+
+      - name: Terraform Init
+        id: init
+        run: |
+          cd environments/${{ inputs.CLUSTER_ENV }}/${{ inputs.CLUSTER_LOCATION }}
+          terraform init
+
+      - name: Terraform State List
+        id: state
+        run: |
+          cd environments/${{ inputs.CLUSTER_ENV }}/${{ inputs.CLUSTER_LOCATION }}
+          terraform state list | grep grafana_dashboard > ../../../grafana_dashboard_list.txt
+
+      - name: Get Terraform Targets
+        env:
+          ACTIONS_ALLOW_UNSECURE_COMMANDS: true
+        run: |
+          ./scripts/grafana_dashboard_targets
+
+      - name: Terraform Plan
+        id: plan
+        run: |
+          cd environments/${{ inputs.CLUSTER_ENV }}/${{ inputs.CLUSTER_LOCATION }}
+          terraform plan -no-color -out ${{ inputs.CLUSTER_ENV }}-${{ inputs.CLUSTER_LOCATION }}.out -var-file=${{ inputs.CLUSTER_ENV }}-${{ inputs.CLUSTER_LOCATION }}.tfvars -lock-timeout=500s ${TARGETS}
+
+      - name: Terraform Apply
+        id: apply
+        run: |
+          cd environments/${{ inputs.CLUSTER_ENV }}/${{ inputs.CLUSTER_LOCATION }}
+          terraform apply -no-color -lock-timeout=500s ${{ inputs.CLUSTER_ENV }}-${{ inputs.CLUSTER_LOCATION }}.out
+
+  finalize:
+    name: Finalize
+    runs-on: ubuntu-latest
+    needs: deploy_grafana_dashboard
+    if: ${{ always() }}
+
+    steps:
+      - name: Fetch Workflow Conclusion
+        uses: technote-space/workflow-conclusion-action@v3.0.2
+
+      - name: Notify
+        uses: 8398a7/action-slack@v3.14.0
+        with:
+          status: ${{ env.WORKFLOW_CONCLUSION }}
+          fields: repo,message,commit,author,action,eventName,ref,workflow
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_CI_CD_TOKEN }}
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}

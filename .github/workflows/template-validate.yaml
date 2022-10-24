@@ -1,0 +1,46 @@
+name: Terraform Validate Template
+
+on:
+  workflow_call:
+    inputs:
+      CLUSTER_ENV:
+        required: true
+        type: string
+      CLUSTER_LOCATION:
+        required: true
+        type: string
+      RUNNER:
+        required: true
+        type: string
+      REF:
+        required: true
+        type: string
+
+jobs:
+  validate:
+    name: Terraform Validate
+    runs-on: ${{ inputs.RUNNER }}
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3.1.0
+        with:
+          ref: ${{ inputs.REF }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2.0.2
+        with:
+          terraform_version: 1.2.3
+
+      - name: Terraform Init
+        id: init
+        run: |
+          cd environments/${{ inputs.CLUSTER_ENV }}/${{ inputs.CLUSTER_LOCATION }}
+          terraform init -backend=false
+
+      - name: Terraform Validate
+        id: plan
+        run: |
+          cd environments/${{ inputs.CLUSTER_ENV }}/${{ inputs.CLUSTER_LOCATION }}
+          touch ../../../creds/serviceaccount.json
+          terraform validate -no-color
