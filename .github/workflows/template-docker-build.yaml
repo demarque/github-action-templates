@@ -1,4 +1,4 @@
-name: State Unlock Template
+name: Docker Build Template
 
 on:
   workflow_call:
@@ -32,6 +32,9 @@ on:
         type: string
       REPOSITORY_NAME:
         required: true
+        type: string
+      BUILD_ARGS:
+        required: false
         type: string
     secrets:
       GCP_SA_KEY:
@@ -69,7 +72,7 @@ jobs:
 
       - name: Build Docker Image
         run: |
-          docker build -t ${{ inputs.GCR_HOSTNAME }}/${{ inputs.GCP_PROJECT }}/${{ inputs.IMAGE }}:${{ inputs.GITHUB_SHA }} .
+          docker build -t ${{ inputs.GCR_HOSTNAME }}/${{ inputs.GCP_PROJECT }}/${{ inputs.IMAGE }}:${{ inputs.GITHUB_SHA }} ${{ inputs.BUILD_ARGS }} .
 
       - name: Push Docker Image
         run: |
@@ -117,7 +120,7 @@ jobs:
     name: Finalize
     runs-on: ubuntu-20.04
     needs: create-infra-pr
-    if: ${{ failure() }}
+    if: ${{ always() }}
 
     steps:
       - name: Fetch Workflow Conclusion
