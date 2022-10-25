@@ -1,3 +1,5 @@
+> :warning: **This is a public repository**: Be very careful here!
+
 # Github Action Templates
 
 Regroup all github actions templates use within the demarque organisation
