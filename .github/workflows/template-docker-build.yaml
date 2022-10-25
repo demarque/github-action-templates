@@ -6,6 +6,9 @@ on:
       REF:
         required: true
         type: string
+      PR_REF:
+        required: true
+        type: string
       GCR_HOSTNAME:
         required: true
         type: string
@@ -100,7 +103,7 @@ jobs:
         with:
           repository: demarque/demarque-infra
           token: ${{ secrets.GH_CI_CD_TOKEN }}
-          ref: ${{ inputs.REF }}
+          ref: ${{ inputs.PR_REF }}
           path: infra
 
       - name: Update Helm Chart Values
