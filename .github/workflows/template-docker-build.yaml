@@ -39,6 +39,9 @@ on:
       DOCKERFILE_PATH:
         required: false
         type: string
+      TARGET_EXTRA_ARGS:
+        required: false
+        type: string
     secrets:
       GCP_SA_KEY:
         required: true
@@ -103,8 +106,8 @@ jobs:
       - name: Update Helm Chart Values
         run: |
           cd infra
-          sed -i 's/  tag: [a-zA-Z0-9]*/  tag: '${{ inputs.GITHUB_SHA }}'/g' modules/${{ inputs.MODULE_ROOT }}/${{ inputs.MODULE_NAME }}/charts/{${{ inputs.PRODUCT_NAME }}}/${{ inputs.TARGET_ENV }}*.yaml
-          sed -i 's/  digest: sha256:[a-zA-Z0-9]*/  digest: '${{needs.build.outputs.digest-output}}'/g' modules/${{ inputs.MODULE_ROOT }}/${{ inputs.MODULE_NAME }}/charts/{${{ inputs.PRODUCT_NAME }}}/${{ inputs.TARGET_ENV }}*.yaml
+          sed -i 's/  tag: [a-zA-Z0-9]*/  tag: '${{ inputs.GITHUB_SHA }}'/g' modules/${{ inputs.MODULE_ROOT }}/${{ inputs.MODULE_NAME }}/charts/{${{ inputs.PRODUCT_NAME }}}/${{ inputs.TARGET_ENV }}${{ inputs.TARGET_EXTRA_ARGS }}*.yaml
+          sed -i 's/  digest: sha256:[a-zA-Z0-9]*/  digest: '${{needs.build.outputs.digest-output}}'/g' modules/${{ inputs.MODULE_ROOT }}/${{ inputs.MODULE_NAME }}/charts/{${{ inputs.PRODUCT_NAME }}}/${{ inputs.TARGET_ENV }}${{ inputs.TARGET_EXTRA_ARGS }}*.yaml
 
       - name: Open Infra PR
         uses: peter-evans/create-pull-request@v4.2.0
