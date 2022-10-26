@@ -6,22 +6,29 @@ on:
       CLUSTER_ENV:
         required: true
         type: string
+        description: Cluster environment (ex. prod)
       CLUSTER_LOCATION:
         required: true
         type: string
+        description: Cluster location (ex. europe)
       RUNNER:
         required: true
         type: string
+        description: Github runner name
       REF:
         required: true
         type: string
+        description: Branch/Commit/Tag to checkout
     secrets:
       GCP_SA_KEY:
         required: true
+        description: Google cloud github action service account key
       GH_CI_CD_TOKEN:
         required: true
+        description: GitHub - De Marque CI/CD aka Jenkins personnal access tokens (classic)
       SLACK_WEBHOOK_URL:
         required: true
+        description: Product slack webhook url
 
 jobs:
   prevent-drift:

@@ -5,6 +5,7 @@ on:
     secrets:
       GH_CI_CD_TOKEN:
         required: true
+        description: GitHub - De Marque CI/CD aka Jenkins personnal access tokens (classic)
 
 jobs:
   automerge:

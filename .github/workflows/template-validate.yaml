@@ -6,15 +6,19 @@ on:
       CLUSTER_ENV:
         required: true
         type: string
+        description: Cluster environment (ex. prod)
       CLUSTER_LOCATION:
         required: true
         type: string
+        description: Cluster location (ex. europe)
       RUNNER:
         required: true
         type: string
+        description: Github runner name
       REF:
         required: true
         type: string
+        description: Branch/Commit/Tag to checkout
 
 jobs:
   validate:

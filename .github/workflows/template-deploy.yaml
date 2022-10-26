@@ -6,31 +6,41 @@ on:
       CLUSTER_ENV:
         required: true
         type: string
+        description: Cluster environment (ex. prod)
       CLUSTER_LOCATION:
         required: true
         type: string
+        description: Cluster location (ex. europe)
       MODULE_ROOT:
         required: true
         type: string
+        description: Module root in demarque-infra
       MODULE_NAME:
         required: true
         type: string
+        description: Module name in demarque-infra
       TARGETS:
         required: true
         type: string
+        description: Terraform targets to deploy split by comma (ex. helm_release.firehose, kubernetes_config_map.firehose_vector_config)
       RUNNER:
         required: true
         type: string
+        description: Github runner name
       REF:
         required: true
         type: string
+        description: Branch/Commit/Tag to checkout
     secrets:
       GCP_SA_KEY:
         required: true
+        description: Google cloud github action service account key
       GH_CI_CD_TOKEN:
         required: true
+        description: GitHub - De Marque CI/CD aka Jenkins personnal access tokens (classic)
       SLACK_WEBHOOK_URL:
         required: true
+        description: Product slack webhook url
 
 jobs:
   terraform:

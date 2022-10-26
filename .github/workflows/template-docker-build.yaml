@@ -7,55 +7,73 @@ on:
         required: false
         type: string
         default: ${{ github.repository }}
+        description: Repository to checkout before the build
       REF:
         required: true
         type: string
+        description: Branch/Commit/Tag to checkout
       PR_REF:
         required: true
         type: string
+        description: Branch/Commit/Tag to checkout when creating the demarque-infra pull request (ex. master|staging)
       GCR_HOSTNAME:
         required: true
         type: string
+        description: Google cloud registry hostname split with comma (ex. gcr.io, eu.gcr.io)
       GCP_PROJECT:
         required: true
         type: string
+        description: Google cloud project (ex. demarque)
       IMAGE:
         required: true
         type: string
+        description: Docker image name
       MODULE_ROOT:
         required: true
         type: string
+        description: Module root in demarque-infra
       MODULE_NAME:
         required: true
         type: string
+        description: Module name in demarque-infra
       PRODUCT_NAME:
         required: true
         type: string
+        description: Product name in demarque-infra
       TARGET_ENV:
         required: true
         type: string
+        description: Target environment for values.yaml changes in demarque-infra (ex. staging|prod)
       GITHUB_SHA:
         required: true
         type: string
+        description: Github SHA
       REPOSITORY_NAME:
         required: true
         type: string
+        description: Current repository name
       BUILD_ARGS:
         required: false
         type: string
+        description: Docker build arguments (ex. --build-arg ARGUMENT=ARGUMENT)
       DOCKERFILE_PATH:
         required: false
         type: string
+        description: Dockerfil path (ex. -f docker/Dockerfile)
       TARGET_EXTRA_ARGS:
         required: false
         type: string
+        description: Extra arguments to add to TARGET_ENV
     secrets:
       GCP_SA_KEY:
         required: true
+        description: Google cloud github action service account key
       GH_CI_CD_TOKEN:
         required: true
+        description: GitHub - De Marque CI/CD aka Jenkins personnal access tokens (classic)
       SLACK_WEBHOOK_URL:
         required: true
+        description: Product slack webhook url
 
 jobs:
   build:

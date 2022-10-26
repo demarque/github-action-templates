@@ -6,27 +6,35 @@ on:
       REF:
         required: true
         type: string
+        description: Branch/Commit/Tag to checkout
       GCR_HOSTNAME:
         required: true
         type: string
+        description: Google cloud registry hostname (ex. gcr.io|eu.gcr.io)
       GCP_PROJECT:
         required: true
         type: string
+        description: Google cloud project (ex. demarque)
       IMAGE:
         required: true
         type: string
+        description: Docker image name
       BUILD_VERSION:
         required: true
         type: string
+        description: Docker version tag
       BUILD_ARGS:
         required: false
         type: string
+        description: Docker build arguments (ex. --build-arg ARGUMENT=ARGUMENT)
       DOCKERFILE_PATH:
         required: false
         type: string
+        description: Dockerfil path (ex. -f docker/Dockerfile)
     secrets:
       GCP_SA_KEY:
         required: true
+        description: Google cloud github action service account key
 
 jobs:
   build:
