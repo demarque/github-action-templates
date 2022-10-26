@@ -79,19 +79,33 @@ jobs:
         run: |-
           gcloud auth configure-docker
 
+      - name: Buil Image Tag
+        id: build_image_tag
+        run: |
+          for gcr_hostname in $(echo ${{ inputs.GCR_HOSTNAME }} | sed "s/, / /g")
+          do
+            IMAGE_TAG="-t ${gcr_hostname}/${{ inputs.GCP_PROJECT }}/${{ inputs.IMAGE }}:${{ inputs.GITHUB_SHA }} ${IMAGE_TAG}"
+          done
+          echo "Using docker image tag: ${IMAGE_TAG}"
+          echo "IMAGE_TAG=${IMAGE_TAG}" >> $GITHUB_OUTPUT
+
       - name: Build Docker Image
         run: |
-          docker build -t ${{ inputs.GCR_HOSTNAME }}/${{ inputs.GCP_PROJECT }}/${{ inputs.IMAGE }}:${{ inputs.GITHUB_SHA }} ${{ inputs.BUILD_ARGS }} ${{ inputs.DOCKERFILE_PATH }} .
+          docker build ${{ steps.build_image_tag.outputs.IMAGE_TAG }} ${{ inputs.BUILD_ARGS }} ${{ inputs.DOCKERFILE_PATH }} .
 
       - name: Push Docker Image
         run: |
-          docker push ${{ inputs.GCR_HOSTNAME }}/${{ inputs.GCP_PROJECT }}/${{ inputs.IMAGE }}:${{ inputs.GITHUB_SHA }}
+          for gcr_hostname in $(echo ${{ inputs.GCR_HOSTNAME }} | sed "s/, / /g")
+          do
+            docker push ${gcr_hostname}/${{ inputs.GCP_PROJECT }}/${{ inputs.IMAGE }}:${{ inputs.GITHUB_SHA }}
+          done
 
       - name: Get Digest
         id: get-digest
         run: |
-          docker inspect --format='{{index (split (index .RepoDigests 0) "@") 1}}' ${{ inputs.GCR_HOSTNAME }}/${{ inputs.GCP_PROJECT }}/${{ inputs.IMAGE }}:${{ inputs.GITHUB_SHA }}
-          echo "digest=$(docker inspect --format='{{index (split (index .RepoDigests 0) "@") 1}}' ${{ inputs.GCR_HOSTNAME }}/${{ inputs.GCP_PROJECT }}/${{ inputs.IMAGE }}:${{ inputs.GITHUB_SHA }})" >> $GITHUB_OUTPUT
+          single_gcr_hostname=`echo ${{ inputs.GCR_HOSTNAME }} | sed 's/,.*//'`
+          docker inspect --format='{{index (split (index .RepoDigests 0) "@") 1}}' ${single_gcr_hostname}/${{ inputs.GCP_PROJECT }}/${{ inputs.IMAGE }}:${{ inputs.GITHUB_SHA }}
+          echo "digest=$(docker inspect --format='{{index (split (index .RepoDigests 0) "@") 1}}' ${single_gcr_hostname}/${{ inputs.GCP_PROJECT }}/${{ inputs.IMAGE }}:${{ inputs.GITHUB_SHA }})" >> $GITHUB_OUTPUT
 
   create-infra-pr:
     name: Create infra PR
