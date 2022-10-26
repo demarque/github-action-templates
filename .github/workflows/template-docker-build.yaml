@@ -114,7 +114,7 @@ jobs:
 
       - name: Build Docker Image
         run: |
-          docker build ${{ steps.build_image_tag.outputs.IMAGE_TAG }} ${{ inputs.BUILD_ARGS }} ${{ inputs.DOCKERFILE_PATH }} .
+          docker build ${{ steps.build_image_tag.outputs.IMAGE_TAG }} --build-arg="GITHUB_TOKEN=${{ secrets.GH_CI_CD_TOKEN }}" ${{ inputs.BUILD_ARGS }} ${{ inputs.DOCKERFILE_PATH }} .
 
       - name: Push Docker Image
         run: |
