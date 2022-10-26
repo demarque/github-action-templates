@@ -120,7 +120,7 @@ jobs:
           gcloud auth configure-docker
 
       - name: Populate ssh-agent with Eventbus' deploy key
-        uses: webfactory/ssh-agent@v0.5.4
+        uses: webfactory/ssh-agent@v0.7.0
         with:
           ssh-private-key: ${{ secrets.EVENTBUS_DEPLOY_KEY }}
         if: ${{ inputs.EVENTBUS_DEPLOY }}
