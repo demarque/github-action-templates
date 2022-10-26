@@ -64,6 +64,20 @@ on:
         required: false
         type: string
         description: Extra arguments to add to TARGET_ENV
+      PRE_DOCKER_BUILD_COMMAND:
+        required: false
+        type: string
+        description: Command to launch right before docker build
+      DOCKER_BUILDKIT:
+        required: false
+        type: number
+        default: 0
+        description: Define if docker buildkit is needed
+      EVENTBUS_DEPLOY:
+        required: false
+        type: boolean
+        default: false
+        description: Define if we need to populate ssh-agent with Eventbus
     secrets:
       GCP_SA_KEY:
         required: true
@@ -74,6 +88,9 @@ on:
       SLACK_WEBHOOK_URL:
         required: true
         description: Product slack webhook url
+      EVENTBUS_DEPLOY_KEY:
+        required: false
+        description: Eventbus deploy key
 
 jobs:
   build:
@@ -102,6 +119,12 @@ jobs:
         run: |-
           gcloud auth configure-docker
 
+      - name: Populate ssh-agent with Eventbus' deploy key
+        uses: webfactory/ssh-agent@v0.5.4
+        with:
+          ssh-private-key: ${{ secrets.EVENTBUS_DEPLOY_KEY }}
+        if: ${{ inputs.EVENTBUS_DEPLOY }}
+
       - name: Buil Image Tag
         id: build_image_tag
         run: |
@@ -113,7 +136,10 @@ jobs:
           echo "IMAGE_TAG=${IMAGE_TAG}" >> $GITHUB_OUTPUT
 
       - name: Build Docker Image
+        env:
+          DOCKER_BUILDKIT: ${{ inputs.DOCKER_BUILDKIT }}
         run: |
+          eval ${{ inputs.PRE_DOCKER_BUILD_COMMAND }}
           docker build ${{ steps.build_image_tag.outputs.IMAGE_TAG }} --build-arg="GITHUB_TOKEN=${{ secrets.GH_CI_CD_TOKEN }}" ${{ inputs.BUILD_ARGS }} ${{ inputs.DOCKERFILE_PATH }} .
 
       - name: Push Docker Image
