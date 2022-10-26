@@ -202,7 +202,7 @@ jobs:
         uses: technote-space/workflow-conclusion-action@v3
 
       - name: Notify
-        uses: 8398a7/action-slack@v3
+        uses: 8398a7/action-slack@v3.14.0
         with:
           status: ${{ env.WORKFLOW_CONCLUSION }}
           fields: repo,message,commit,author,action,eventName,ref,workflow
