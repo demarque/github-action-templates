@@ -98,8 +98,8 @@ jobs:
     name: Build
     runs-on: ubuntu-20.04
 
-    # outputs:
-    #   digest-output: ${{ steps.get-digest.outputs.digest }}
+    outputs:
+      digest-output: ${{ steps.get-digest.outputs.digest }}
 
     steps:
       - name: Checkout Repository
@@ -116,9 +116,9 @@ jobs:
       - name: Setup Cloud SDK
         uses: google-github-actions/setup-gcloud@v0
 
-      # - name: Google Cloud Docker Auth
-      #   run: |-
-      #     gcloud auth configure-docker
+      - name: Google Cloud Docker Auth
+        run: |-
+          gcloud auth configure-docker
 
       - name: Populate ssh-agent with Eventbus' deploy key
         uses: webfactory/ssh-agent@v0.7.0
@@ -136,12 +136,6 @@ jobs:
           echo "Using docker image tag: ${IMAGE_TAG}"
           echo "IMAGE_TAG=${IMAGE_TAG}" >> $GITHUB_OUTPUT
 
-      - name: Populate ssh-agent with Eventbus' deploy key
-        uses: webfactory/ssh-agent@v0.5.4
-        with:
-          ssh-private-key: ${{ secrets.EVENTBUS_DEPLOY_KEY }}
-        if: ${{ inputs.EVENTBUS_DEPLOY }}
-
       - name: Build Docker Image
         env:
           DOCKER_BUILDKIT: ${{ inputs.DOCKER_BUILDKIT }}
@@ -149,19 +143,19 @@ jobs:
           eval ${{ inputs.PRE_DOCKER_BUILD_COMMAND }}
           docker build ${{ steps.build_image_tag.outputs.IMAGE_TAG }} --build-arg="GITHUB_TOKEN=${{ secrets.GH_CI_CD_TOKEN }}" ${{ inputs.BUILD_ARGS }} ${{ inputs.DOCKERFILE_PATH }} .
 
-      # - name: Push Docker Image
-      #   run: |
-      #     for gcr_hostname in $(echo ${{ inputs.GCR_HOSTNAME }} | sed "s/, / /g")
-      #     do
-      #       docker push ${gcr_hostname}/${{ inputs.GCP_PROJECT }}/${{ inputs.IMAGE }}:${{ inputs.GITHUB_SHA }}
-      #     done
+      - name: Push Docker Image
+        run: |
+          for gcr_hostname in $(echo ${{ inputs.GCR_HOSTNAME }} | sed "s/, / /g")
+          do
+            docker push ${gcr_hostname}/${{ inputs.GCP_PROJECT }}/${{ inputs.IMAGE }}:${{ inputs.GITHUB_SHA }}
+          done
 
-      # - name: Build Docker Image
-      #   run: |
-      #     for gcr_hostname in $(echo ${{ inputs.GCR_HOSTNAME }} | sed "s/, / /g")
-      #     do
-      #       docker push ${gcr_hostname}/${{ inputs.GCP_PROJECT }}/${{ inputs.IMAGE }}:${{ inputs.GITHUB_SHA }}
-      #     done
+      - name: Get Digest
+        id: get-digest
+        run: |
+          single_gcr_hostname=`echo ${{ inputs.GCR_HOSTNAME }} | sed 's/,.*//'`
+          docker inspect --format='{{index (split (index .RepoDigests 0) "@") 1}}' ${single_gcr_hostname}/${{ inputs.GCP_PROJECT }}/${{ inputs.IMAGE }}:${{ inputs.GITHUB_SHA }}
+          echo "digest=$(docker inspect --format='{{index (split (index .RepoDigests 0) "@") 1}}' ${single_gcr_hostname}/${{ inputs.GCP_PROJECT }}/${{ inputs.IMAGE }}:${{ inputs.GITHUB_SHA }})" >> $GITHUB_OUTPUT
 
   create-infra-pr:
     name: Create infra PR
@@ -176,29 +170,33 @@ jobs:
           ref: ${{ inputs.PR_REF }}
           path: infra
 
-      # - name: Get Digest
-      #   id: get-digest
-      #   run: |
-      #     docker inspect --format='{{index (split (index .RepoDigests 0) "@") 1}}' ${{ inputs.GCR_HOSTNAME }}/${{ inputs.GCP_PROJECT }}/${{ inputs.IMAGE }}:${{ inputs.GITHUB_SHA }}
-      #     echo "digest=$(docker inspect --format='{{index (split (index .RepoDigests 0) "@") 1}}' ${{ inputs.GCR_HOSTNAME }}/${{ inputs.GCP_PROJECT }}/${{ inputs.IMAGE }}:${{ inputs.GITHUB_SHA }})" >> $GITHUB_OUTPUT
+      - name: Update Helm Chart Values
+        run: |
+          cd infra
+          for product_name in $(echo ${{ inputs.PRODUCT_NAME }} | sed "s/,/ /g")
+          do
+            sed -i 's/tag: [a-zA-Z0-9\.\:\@]*/tag: '${{ inputs.GITHUB_SHA }}'/g' modules/${{ inputs.MODULE_ROOT }}/${{ inputs.MODULE_NAME }}/charts/${product_name}/${{ inputs.TARGET_ENV }}${{ inputs.TARGET_EXTRA_ARGS }}*.yaml
+            sed -i 's/  digest: sha256:[a-zA-Z0-9]*/  digest: '${{needs.build.outputs.digest-output}}'/g' modules/${{ inputs.MODULE_ROOT }}/${{ inputs.MODULE_NAME }}/charts/${product_name}/${{ inputs.TARGET_ENV }}${{ inputs.TARGET_EXTRA_ARGS }}*.yaml
+          done
 
-      # - name: Update Helm Chart Values
-      #   run: |
-      #     cd infra
-      #     for product_name in $(echo ${{ inputs.PRODUCT_NAME }} | sed "s/,/ /g")
-      #     do
-      #       sed -i 's/tag: [a-zA-Z0-9\.\:\@]*/tag: '${{ inputs.GITHUB_SHA }}'/g' modules/${{ inputs.MODULE_ROOT }}/${{ inputs.MODULE_NAME }}/charts/${product_name}/${{ inputs.TARGET_ENV }}${{ inputs.TARGET_EXTRA_ARGS }}*.yaml
-      #       sed -i 's/  digest: sha256:[a-zA-Z0-9]*/  digest: '${{needs.build.outputs.digest-output}}'/g' modules/${{ inputs.MODULE_ROOT }}/${{ inputs.MODULE_NAME }}/charts/${product_name}/${{ inputs.TARGET_ENV }}${{ inputs.TARGET_EXTRA_ARGS }}*.yaml
-      #     done
+      - name: Open Infra PR
+        uses: peter-evans/create-pull-request@v4.2.0
+        with:
+          token: ${{ secrets.GH_CI_CD_TOKEN }}
+          path: infra
+          committer: Github Actions <infra@demarque.com>
+          author: Github Actions <infra@demarque.com>
+          branch: deploy/${{ inputs.TARGET_ENV }}/${{ inputs.GITHUB_SHA }}
+          commit-message: "chore: ${{ inputs.TARGET_ENV }} - deploy ${{ inputs.REPOSITORY_NAME }} ${{ inputs.GITHUB_SHA }}"
+          title: ${{ inputs.TARGET_ENV }} - deploy ${{ inputs.REPOSITORY_NAME }} ${{ inputs.GITHUB_SHA }}
+          body: ${{ inputs.TARGET_ENV }} - deploy ${{ inputs.REPOSITORY_NAME }} ${{ inputs.GITHUB_SHA }}
+          labels: automerge
 
-  #     - name: Update Helm Chart Values
-  #       run: |
-  #         cd infra
-  #         for product_name in $(echo ${{ inputs.PRODUCT_NAME }} | sed "s/,/ /g")
-  #         do
-  #           sed -i 's/tag: [a-zA-Z0-9\.\:\@]*/tag: '${{ inputs.GITHUB_SHA }}'/g' modules/${{ inputs.MODULE_ROOT }}/${{ inputs.MODULE_NAME }}/charts/${product_name}/${{ inputs.TARGET_ENV }}${{ inputs.TARGET_EXTRA_ARGS }}*.yaml
-  #           sed -i 's/  digest: sha256:[a-zA-Z0-9]*/  digest: '${{needs.build.outputs.digest-output}}'/g' modules/${{ inputs.MODULE_ROOT }}/${{ inputs.MODULE_NAME }}/charts/${product_name}/${{ inputs.TARGET_ENV }}${{ inputs.TARGET_EXTRA_ARGS }}*.yaml
-  #         done
+  finalize:
+    name: Finalize
+    runs-on: ubuntu-20.04
+    needs: create-infra-pr
+    if: ${{ always() }}
 
     steps:
       - name: Fetch Workflow Conclusion
@@ -212,18 +210,3 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GH_CI_CD_TOKEN }}
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
-
-  #   steps:
-  #     - name: Fetch Workflow Conclusion
-  #       uses: technote-space/workflow-conclusion-action@v3
-
-  #     - name: Notify
-  #       uses: 8398a7/action-slack@v3
-  #       with:
-  #         status: ${{ env.WORKFLOW_CONCLUSION }}
-  #         fields: repo,message,commit,author,action,eventName,ref,workflow
-  #       env:
-  #         GITHUB_TOKEN: ${{ secrets.GH_CI_CD_TOKEN }}
-  #         SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
-
-
