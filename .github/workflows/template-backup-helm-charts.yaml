@@ -13,11 +13,6 @@ on:
         type: string
         default: ${{ github.ref }}
         description: Branch/Commit/Tag to checkout
-      EVENTBUS_DEPLOY:
-        required: false
-        type: boolean
-        default: false
-        description: Define if we need to populate ssh-agent with Eventbus
     secrets:
       GCP_SA_KEY:
         required: true
