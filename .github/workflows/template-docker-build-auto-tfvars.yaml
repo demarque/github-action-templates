@@ -1,0 +1,200 @@
+name: Docker Build With Auto Vars Template
+
+on:
+  workflow_call:
+    inputs:
+      REPOSITORY:
+        required: false
+        type: string
+        default: ${{ github.repository }}
+        description: Repository to checkout before the build
+      REF:
+        required: false
+        type: string
+        default: ${{ github.ref }}
+        description: Branch/Commit/Tag to checkout
+      PR_REF:
+        required: true
+        type: string
+        description: Branch/Commit/Tag to checkout when creating the demarque-infra pull request (ex. master|staging)
+      GCR_HOSTNAME:
+        required: true
+        type: string
+        description: Google cloud registry hostname split with comma (ex. gcr.io, eu.gcr.io)
+      GCP_PROJECT:
+        required: true
+        type: string
+        description: Google cloud project (ex. demarque)
+      IMAGE:
+        required: true
+        type: string
+        description: Docker image name
+      TARGET_ENV:
+        required: true
+        type: string
+        description: Target environment for values.yaml changes in demarque-infra (ex. staging|prod)
+      TARGET_REGION:
+        required: true
+        type: string
+        description: Region (ex. northamerica)
+      AUTO_TFVARS_FILENAME:
+        required: true
+        type: string
+        description: Name of the auto.tfvars file to change
+      GITHUB_SHA:
+        required: true
+        type: string
+        description: Github SHA
+      REPOSITORY_NAME:
+        required: true
+        type: string
+        description: Current repository name
+      BUILD_ARGS:
+        required: false
+        type: string
+        description: Docker build arguments (ex. --build-arg ARGUMENT=ARGUMENT)
+      DOCKERFILE_PATH:
+        required: false
+        type: string
+        description: Dockerfil path (ex. -f docker/Dockerfile)
+      PRE_DOCKER_BUILD_COMMAND:
+        required: false
+        type: string
+        description: Command to launch right before docker build
+      DOCKER_BUILDKIT:
+        required: false
+        type: number
+        default: 0
+        description: Define if docker buildkit is needed
+      EVENTBUS_DEPLOY:
+        required: false
+        type: boolean
+        default: false
+        description: Define if we need to populate ssh-agent with Eventbus
+    secrets:
+      GCP_SA_KEY:
+        required: true
+        description: Google cloud github action service account key
+      GH_CI_CD_TOKEN:
+        required: true
+        description: GitHub - De Marque CI/CD aka Jenkins personnal access tokens (classic)
+      SLACK_WEBHOOK_URL:
+        required: true
+        description: Product slack webhook url
+      EVENTBUS_DEPLOY_KEY:
+        required: false
+        description: Eventbus deploy key
+
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-22.04
+
+    outputs:
+      digest-output: ${{ steps.get-digest.outputs.digest }}
+
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v3.1.0
+      with:
+        repository: ${{ inputs.REPOSITORY }}
+        ref: ${{ inputs.REF }}
+
+    - name: GCloud Authentification
+      uses: google-github-actions/auth@v0.8.3
+      with:
+        credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+    - name: Set up Cloud SDK
+      uses: google-github-actions/setup-gcloud@v0
+
+    - name: Google Cloud Docker Auth
+      run: |-
+        gcloud auth configure-docker
+
+    - name: Populate ssh-agent with Eventbus deploy key
+      uses: webfactory/ssh-agent@v0.7.0
+      with:
+        ssh-private-key: ${{ secrets.EVENTBUS_DEPLOY_KEY }}
+      if: ${{ inputs.EVENTBUS_DEPLOY }}
+
+    - name: Buil Image Tag
+      id: build_image_tag
+      run: |
+        for gcr_hostname in $(echo ${{ inputs.GCR_HOSTNAME }} | sed "s/, / /g")
+        do
+          IMAGE_TAG="-t ${gcr_hostname}/${{ inputs.GCP_PROJECT }}/${{ inputs.IMAGE }}:${{ inputs.GITHUB_SHA }} ${IMAGE_TAG}"
+        done
+        echo "Using docker image tag: ${IMAGE_TAG}"
+        echo "IMAGE_TAG=${IMAGE_TAG}" >> $GITHUB_OUTPUT
+
+    - name: Build Docker Image
+      env:
+        DOCKER_BUILDKIT: ${{ inputs.DOCKER_BUILDKIT }}
+      run: |
+        eval ${{ inputs.PRE_DOCKER_BUILD_COMMAND }}
+        docker build ${{ steps.build_image_tag.outputs.IMAGE_TAG }} --build-arg="GITHUB_TOKEN=${{ secrets.GH_CI_CD_TOKEN }}" ${{ inputs.BUILD_ARGS }} ${{ inputs.DOCKERFILE_PATH }} .
+
+    - name: Push Docker Image
+      run: |
+        for gcr_hostname in $(echo ${{ inputs.GCR_HOSTNAME }} | sed "s/, / /g")
+        do
+          docker push ${gcr_hostname}/${{ inputs.GCP_PROJECT }}/${{ inputs.IMAGE }}:${{ inputs.GITHUB_SHA }}
+        done
+
+    - name: Get Digest
+      id: get-digest
+      run: |
+        single_gcr_hostname=`echo ${{ inputs.GCR_HOSTNAME }} | sed 's/,.*//'`
+        docker inspect --format='{{index (split (index .RepoDigests 0) "@") 1}}' ${single_gcr_hostname}/${{ inputs.GCP_PROJECT }}/${{ inputs.IMAGE }}:${{ inputs.GITHUB_SHA }}
+        echo "digest=$(docker inspect --format='{{index (split (index .RepoDigests 0) "@") 1}}' ${single_gcr_hostname}/${{ inputs.GCP_PROJECT }}/${{ inputs.IMAGE }}:${{ inputs.GITHUB_SHA }})" >> $GITHUB_OUTPUT
+
+  create-infra-pr:
+    name: Create infra PR
+    runs-on: ubuntu-20.04
+    needs: build
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v3.1.0
+      with:
+        repository: demarque/demarque-infra
+        token: ${{ secrets.GH_CI_CD_TOKEN }}
+        ref: ${{ inputs.PR_REF }}
+        path: infra
+
+    - name: Update helm chart values
+      run: |
+        cd infra
+        sed -i "s/[a-zA-Z0-9]*@sha256:[a-zA-Z0-9]*/${{ inputs.GITHUB_SHA }}@${{needs.build.outputs.digest-output}}/g" environments/${{ inputs.TARGET_ENV }}/${{ inputs.TARGET_REGION }}/${{ inputs.AUTO_TFVARS_FILENAME }}.auto.tfvars
+
+    - name: Open Infra PR
+      uses: peter-evans/create-pull-request@v4.2.0
+      with:
+        token: ${{ secrets.GH_CI_CD_TOKEN }}
+        path: infra
+        committer: Github Actions <infra@demarque.com>
+        author: Github Actions <infra@demarque.com>
+        branch: deploy/${{ inputs.TARGET_ENV }}/${{ inputs.GITHUB_SHA }}
+        commit-message: "chore: ${{ inputs.TARGET_ENV }} - deploy ${{ inputs.REPOSITORY_NAME }} ${{ inputs.GITHUB_SHA }}"
+        title: ${{ inputs.TARGET_ENV }} - deploy ${{ inputs.REPOSITORY_NAME }} ${{ inputs.GITHUB_SHA }}
+        body: ${{ inputs.TARGET_ENV }} - deploy ${{ inputs.REPOSITORY_NAME }} ${{ inputs.GITHUB_SHA }}
+        labels: automerge
+
+  finalize:
+    name: Finalize
+    runs-on: ubuntu-20.04
+    needs: create-infra-pr
+    if: ${{ always() }}
+
+    steps:
+      - name: Fetch Workflow Conclusion
+        uses: technote-space/workflow-conclusion-action@v3.0.2
+
+      - name: Notify
+        uses: 8398a7/action-slack@v3.14.0
+        with:
+          status: ${{ env.WORKFLOW_CONCLUSION }}
+          fields: repo,message,commit,author,action,eventName,ref,workflow
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_CI_CD_TOKEN }}
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
