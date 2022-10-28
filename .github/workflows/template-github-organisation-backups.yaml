@@ -1,0 +1,86 @@
+name: Github Organisation Backup Template
+
+on:
+  workflow_call:
+    inputs:
+      ORGANISATION:
+        required: true
+        type: string
+        description: The organisation in github to backup
+      REPOSITORIES:
+        required: false
+        type: string
+        default: all
+        description: The github repository to include in the backup
+      LOCK_REPOSITORIES:
+        required: false
+        type: boolean
+        default: false
+        description: Define if we want to lock repositories while doing the backup
+      BUCKET_NAME:
+        required: true
+        type: string
+        description: Define the bucket in google cloud for which we want to backup to
+      REF:
+        required: false
+        type: string
+        default: ${{ github.ref }}
+        description: Branch/Commit/Tag to checkout
+      REPOSITORY:
+        required: false
+        type: string
+        default: ${{ github.repository }}
+        description: The repository to checkout
+    secrets:
+      GCP_SA_KEY:
+        required: true
+        description: Google cloud github action service account key
+      GH_CI_CD_TOKEN:
+        required: true
+        description: GitHub - De Marque CI/CD aka Jenkins personnal access tokens (classic)
+      SLACK_WEBHOOK_URL:
+        required: true
+        description: Product slack webhook url
+
+jobs:
+  launch_backup:
+    name: Launch Backup
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3.1.0
+        with:
+          repository: ${{ inputs.REPOSITORY }}
+          ref: ${{ inputs.REF }}
+
+      - name: GCloud Authentification
+        uses: google-github-actions/auth@v0.8.3
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Set up GCloud SDK
+        uses: google-github-actions/setup-gcloud@v0
+
+      - name: Launch Github Organisation Backup
+        run: |-
+          ./scripts/backup_github_organisation ${{ secrets.GH_MIGRATION_TOKEN }} ${{ inputs.ORGANISATION }} ${{ inputs.REPOSITORIES }} ${{ inputs.LOCK_REPOSITORIES }} ${{ inputs.BUCKET_NAME }}
+
+  finalize:
+    name: Finalize
+    runs-on: ubuntu-latest
+    needs: launch_backup
+    if: ${{ failure() }}
+
+    steps:
+      - name: Fetch Workflow Conclusion
+        uses: technote-space/workflow-conclusion-action@v3.0.2
+
+      - name: Notify
+        uses: 8398a7/action-slack@v3.14.0
+        with:
+          status: ${{ env.WORKFLOW_CONCLUSION }}
+          fields: repo,message,commit,author,action,eventName,ref,workflow
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_CI_CD_TOKEN }}
+          SLACK_WEBHOOK_URL: ${{ secrets.INFRA_SLACK_WEBHOOK_URL }}
