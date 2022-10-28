@@ -58,7 +58,7 @@ jobs:
           gcloud container clusters get-credentials ${{ inputs.CLUSTER_ENV }}-${{ inputs.CLUSTER_LOCATION }} --zone ${{ inputs.ZONE }} --project demarque
 
       - name: Install Helm
-        uses: azure/setup-helm@v3.3
+        uses: azure/setup-helm@v3.4
         with:
           version: 3.9.0
 
