@@ -210,5 +210,3 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GH_CI_CD_TOKEN }}
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
-
-
