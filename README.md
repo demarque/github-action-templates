@@ -4,16 +4,18 @@
 
 Regroup all github actions templates use within the demarque organisation
 
-# Project not compatible with templates
+# Actions not compatible with templates
 
 1. MARKET_ELASTICSEARCH
 1. MARKET_GEOIP
+1. UPDATE-MARKET-DEV-IP-WHITELIST-STAGING-NA
+1. MOZILLA-OBSERVATORY
 
 # Update github action templates
 
 ## Test changes in actions before switching
 
-1. Create a new branch from staging
+1. Create a new branch from main
 1. Add changes in template
 1. Choose an action from which you will run the test
 1. Change tag name/version (ex. gh-workflow-templates-v2) in this action for the new branch name
