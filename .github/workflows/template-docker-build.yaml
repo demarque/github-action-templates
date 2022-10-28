@@ -9,8 +9,9 @@ on:
         default: ${{ github.repository }}
         description: Repository to checkout before the build
       REF:
-        required: true
+        required: false
         type: string
+        default: ${{ github.ref }}
         description: Branch/Commit/Tag to checkout
       PR_REF:
         required: true
