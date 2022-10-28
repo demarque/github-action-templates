@@ -87,17 +87,11 @@ jobs:
           cd environments/${{ inputs.CLUSTER_ENV }}/${{ inputs.CLUSTER_LOCATION }}
           terraform validate -no-color
 
-      - name: Terraform Plan
-        id: plan
-        run: |
-          cd environments/${{ inputs.CLUSTER_ENV }}/${{ inputs.CLUSTER_LOCATION }}
-          terraform plan -no-color -out ${{ inputs.CLUSTER_ENV }}-${{ inputs.CLUSTER_LOCATION }}.out -var-file=${{ inputs.CLUSTER_ENV }}-${{ inputs.CLUSTER_LOCATION }}.tfvars -lock-timeout=500s ${{ steps.build_target.outputs.BUILDED_TARGETS }}
-
       - name: Terraform Apply
         id: apply
         run: |
           cd environments/${{ inputs.CLUSTER_ENV }}/${{ inputs.CLUSTER_LOCATION }}
-          terraform apply -no-color -lock-timeout=500s ${{ inputs.CLUSTER_ENV }}-${{ inputs.CLUSTER_LOCATION }}.out
+          terraform apply -no-color -auto-approve -var-file=${{ inputs.CLUSTER_ENV }}-${{ inputs.CLUSTER_LOCATION }}.tfvars -lock-timeout=500s ${{ steps.build_target.outputs.BUILDED_TARGETS }}
 
   finalize:
     name: Finalize
