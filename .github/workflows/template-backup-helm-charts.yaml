@@ -27,7 +27,7 @@ on:
 jobs:
   push-helm-charts:
     name: Push Helm Charts
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
 
     steps:
       - name: Checkout Repository
