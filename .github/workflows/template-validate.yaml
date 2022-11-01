@@ -18,6 +18,7 @@ on:
       REF:
         required: true
         type: string
+        default: ${{ github.ref }}
         description: Branch/Commit/Tag to checkout
 
 jobs:
