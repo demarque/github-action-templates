@@ -65,7 +65,7 @@ jobs:
           ln -s $GOOGLE_APPLICATION_CREDENTIALS creds/serviceaccount.json
 
       - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v2.0.2
+        uses: hashicorp/setup-terraform@v2.0.3
         with:
           terraform_version: 1.3.3
 
