@@ -69,6 +69,10 @@ jobs:
           cd environments/${{ inputs.CLUSTER_ENV }}/${{ inputs.CLUSTER_LOCATION }} || cd ${{ inputs.CLUSTER_ENV }}/${{ inputs.CLUSTER_LOCATION }}
           terraform plan -detailed-exitcode -no-color -out ${{ inputs.CLUSTER_ENV }}-${{ inputs.CLUSTER_LOCATION }}.out -var-file=${{ inputs.CLUSTER_ENV }}-${{ inputs.CLUSTER_LOCATION }}.tfvars -lock-timeout=500s
 
+      - name: Fetch Exitcode
+        if: steps.plan.outputs.exitcode == 2
+        run: exit 1
+
   finalize:
     name: Finalize
     runs-on: ubuntu-latest
