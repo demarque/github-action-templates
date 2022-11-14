@@ -205,23 +205,23 @@ jobs:
           commit-message: "chore: ${{ inputs.TARGET_ENV }} - deploy ${{ inputs.REPOSITORY_NAME }} ${{ inputs.GITHUB_SHA }}"
           title: ${{ inputs.TARGET_ENV }} - deploy ${{ inputs.REPOSITORY_NAME }} ${{ inputs.GITHUB_SHA }}
           body: ${{ inputs.TARGET_ENV }} - deploy ${{ inputs.REPOSITORY_NAME }} ${{ inputs.GITHUB_SHA }}
-          labels: automerge
+          # labels: automerge
 
-  finalize:
-    name: Finalize
-    runs-on: ubuntu-20.04
-    needs: create-infra-pr
-    if: ${{ always() }}
+  # finalize:
+  #   name: Finalize
+  #   runs-on: ubuntu-20.04
+  #   needs: create-infra-pr
+  #   if: ${{ always() }}
 
-    steps:
-      - name: Fetch Workflow Conclusion
-        uses: technote-space/workflow-conclusion-action@v3.0.2
+  #   steps:
+  #     - name: Fetch Workflow Conclusion
+  #       uses: technote-space/workflow-conclusion-action@v3.0.2
 
-      - name: Notify
-        uses: 8398a7/action-slack@v3.14.0
-        with:
-          status: ${{ env.WORKFLOW_CONCLUSION }}
-          fields: repo,message,commit,author,action,eventName,ref,workflow
-        env:
-          GITHUB_TOKEN: ${{ secrets.GH_CI_CD_TOKEN }}
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+  #     - name: Notify
+  #       uses: 8398a7/action-slack@v3.14.0
+  #       with:
+  #         status: ${{ env.WORKFLOW_CONCLUSION }}
+  #         fields: repo,message,commit,author,action,eventName,ref,workflow
+  #       env:
+  #         GITHUB_TOKEN: ${{ secrets.GH_CI_CD_TOKEN }}
+  #         SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
