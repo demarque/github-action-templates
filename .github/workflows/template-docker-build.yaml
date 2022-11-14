@@ -29,18 +29,14 @@ on:
         required: true
         type: string
         description: Docker image name
-      MODULE_ROOT:
+      MODULE:
         required: true
         type: string
-        description: Module root in demarque-infra
-      MODULE_NAME:
-        required: true
-        type: string
-        description: Module name in demarque-infra
+        description: Module root in demarque-infra split with comma (ex. core/warehouse, hub)
       PRODUCT_NAME:
         required: true
         type: string
-        description: Product name in demarque-infra
+        description: Product name in demarque-infra split with comma (ex. importer-admin,importer-workers,ingest)
       TARGET_ENV:
         required: true
         type: string
@@ -175,8 +171,11 @@ jobs:
           cd infra
           for product_name in $(echo ${{ inputs.PRODUCT_NAME }} | sed "s/,/ /g")
           do
-            sed -i 's/tag: [a-zA-Z0-9\.\:\@]*/tag: '${{ inputs.GITHUB_SHA }}'/g' modules/${{ inputs.MODULE_ROOT }}/${{ inputs.MODULE_NAME }}/charts/${product_name}/${{ inputs.TARGET_ENV }}${{ inputs.TARGET_EXTRA_ARGS }}*.yaml
-            sed -i 's/  digest: sha256:[a-zA-Z0-9]*/  digest: '${{needs.build.outputs.digest-output}}'/g' modules/${{ inputs.MODULE_ROOT }}/${{ inputs.MODULE_NAME }}/charts/${product_name}/${{ inputs.TARGET_ENV }}${{ inputs.TARGET_EXTRA_ARGS }}*.yaml
+            for module in $(echo ${{ inputs.MODULE }} | sed "s/, / /g")
+            do
+              sed -i 's/tag: [a-zA-Z0-9\.\:\@]*/tag: '${{ inputs.GITHUB_SHA }}'/g' modules/${module}/charts/${product_name}/${{ inputs.TARGET_ENV }}${{ inputs.TARGET_EXTRA_ARGS }}*.yaml
+              sed -i 's/  digest: sha256:[a-zA-Z0-9]*/  digest: '${{needs.build.outputs.digest-output}}'/g' modules/${module}/charts/${product_name}/${{ inputs.TARGET_ENV }}${{ inputs.TARGET_EXTRA_ARGS }}*.yaml
+            done
           done
 
       - name: Open Infra PR
@@ -190,23 +189,23 @@ jobs:
           commit-message: "chore: ${{ inputs.TARGET_ENV }} - deploy ${{ inputs.REPOSITORY_NAME }} ${{ inputs.GITHUB_SHA }}"
           title: ${{ inputs.TARGET_ENV }} - deploy ${{ inputs.REPOSITORY_NAME }} ${{ inputs.GITHUB_SHA }}
           body: ${{ inputs.TARGET_ENV }} - deploy ${{ inputs.REPOSITORY_NAME }} ${{ inputs.GITHUB_SHA }}
-          labels: automerge
+          # labels: automerge
 
-  finalize:
-    name: Finalize
-    runs-on: ubuntu-20.04
-    needs: create-infra-pr
-    if: ${{ always() }}
+  # finalize:
+  #   name: Finalize
+  #   runs-on: ubuntu-20.04
+  #   needs: create-infra-pr
+  #   if: ${{ always() }}
 
-    steps:
-      - name: Fetch Workflow Conclusion
-        uses: technote-space/workflow-conclusion-action@v3.0.2
+  #   steps:
+  #     - name: Fetch Workflow Conclusion
+  #       uses: technote-space/workflow-conclusion-action@v3.0.2
 
-      - name: Notify
-        uses: 8398a7/action-slack@v3.14.0
-        with:
-          status: ${{ env.WORKFLOW_CONCLUSION }}
-          fields: repo,message,commit,author,action,eventName,ref,workflow
-        env:
-          GITHUB_TOKEN: ${{ secrets.GH_CI_CD_TOKEN }}
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+  #     - name: Notify
+  #       uses: 8398a7/action-slack@v3.14.0
+  #       with:
+  #         status: ${{ env.WORKFLOW_CONCLUSION }}
+  #         fields: repo,message,commit,author,action,eventName,ref,workflow
+  #       env:
+  #         GITHUB_TOKEN: ${{ secrets.GH_CI_CD_TOKEN }}
+  #         SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
