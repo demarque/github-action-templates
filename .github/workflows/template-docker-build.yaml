@@ -29,18 +29,14 @@ on:
         required: true
         type: string
         description: Docker image name
-      MODULE_ROOT:
+      MODULE:
         required: true
         type: string
-        description: Module root in demarque-infra
-      MODULE_NAME:
-        required: true
-        type: string
-        description: Module name in demarque-infra
+        description: Module root in demarque-infra split with comma (ex. core/warehouse, hub)
       PRODUCT_NAME:
         required: true
         type: string
-        description: Product name in demarque-infra
+        description: Product name in demarque-infra split with comma (ex. importer-admin,importer-workers,ingest)
       TARGET_ENV:
         required: true
         type: string
@@ -175,8 +171,11 @@ jobs:
           cd infra
           for product_name in $(echo ${{ inputs.PRODUCT_NAME }} | sed "s/,/ /g")
           do
-            sed -i 's/tag: [a-zA-Z0-9\.\:\@]*/tag: '${{ inputs.GITHUB_SHA }}'/g' modules/${{ inputs.MODULE_ROOT }}/${{ inputs.MODULE_NAME }}/charts/${product_name}/${{ inputs.TARGET_ENV }}${{ inputs.TARGET_EXTRA_ARGS }}*.yaml
-            sed -i 's/  digest: sha256:[a-zA-Z0-9]*/  digest: '${{needs.build.outputs.digest-output}}'/g' modules/${{ inputs.MODULE_ROOT }}/${{ inputs.MODULE_NAME }}/charts/${product_name}/${{ inputs.TARGET_ENV }}${{ inputs.TARGET_EXTRA_ARGS }}*.yaml
+            for module in $(echo ${{ inputs.MODULE }} | sed "s/, / /g")
+            do
+              sed -i 's/tag: [a-zA-Z0-9\.\:\@]*/tag: '${{ inputs.GITHUB_SHA }}'/g' modules/${module}/charts/${product_name}/${{ inputs.TARGET_ENV }}${{ inputs.TARGET_EXTRA_ARGS }}*.yaml
+              sed -i 's/  digest: sha256:[a-zA-Z0-9]*/  digest: '${{needs.build.outputs.digest-output}}'/g' modules/${module}/charts/${product_name}/${{ inputs.TARGET_ENV }}${{ inputs.TARGET_EXTRA_ARGS }}*.yaml
+            done
           done
 
       - name: Open Infra PR
