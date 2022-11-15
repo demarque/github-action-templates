@@ -29,8 +29,16 @@ on:
         required: true
         type: string
         description: Docker image name
-      MODULE:
-        required: true
+      MODULE_ROOT:
+        required: false
+        type: string
+        description: Module root in demarque-infra (only for retro compatibility should use MODULE instead)
+      MODULE_NAME:
+        required: false
+        type: string
+        description: Module name in demarque-infra (only for retro compatibility should use MODULE instead)
+      MODULES:
+        required: false
         type: string
         description: Module root in demarque-infra split with comma (ex. core/warehouse, hub)
       PRODUCT_NAME:
@@ -169,9 +177,14 @@ jobs:
       - name: Update Helm Chart Values
         run: |
           cd infra
+          MODULES="${{ inputs.MODULES }}"
+
+          if [ -z "${MODULES}" ]; then
+            MODULES=${{ inputs.MODULE_ROOT }}/${{ inputs.MODULE_NAME }}
+          fi
           for product_name in $(echo ${{ inputs.PRODUCT_NAME }} | sed "s/,/ /g")
           do
-            for module in $(echo ${{ inputs.MODULE }} | sed "s/, / /g")
+            for module in $(echo ${MODULES} | sed "s/, / /g")
             do
               sed -i 's/tag: [a-zA-Z0-9\.\:\@]*/tag: '${{ inputs.GITHUB_SHA }}'/g' modules/${module}/charts/${product_name}/${{ inputs.TARGET_ENV }}${{ inputs.TARGET_EXTRA_ARGS }}*.yaml
               sed -i 's/  digest: sha256:[a-zA-Z0-9]*/  digest: '${{needs.build.outputs.digest-output}}'/g' modules/${module}/charts/${product_name}/${{ inputs.TARGET_ENV }}${{ inputs.TARGET_EXTRA_ARGS }}*.yaml
