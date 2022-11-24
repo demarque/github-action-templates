@@ -154,7 +154,7 @@ jobs:
 
   create-infra-pr:
     name: Create infra PR
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     needs: build
     steps:
     - name: Checkout Repository
@@ -185,7 +185,7 @@ jobs:
 
   finalize:
     name: Finalize
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     needs: create-infra-pr
     if: ${{ always() }}
 
