@@ -24,6 +24,9 @@ on:
         required: true
         description: Product slack webhook url
 
+concurrency:
+  group: ${{ github.ref }}
+
 jobs:
   push-helm-charts:
     name: Push Helm Charts

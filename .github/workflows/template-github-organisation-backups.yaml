@@ -42,6 +42,9 @@ on:
         required: true
         description: Product slack webhook url
 
+concurrency:
+  group: ${{ github.ref }}
+
 jobs:
   launch_backup:
     name: Launch Backup

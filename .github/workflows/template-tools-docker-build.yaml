@@ -37,6 +37,9 @@ on:
         required: true
         description: Google cloud github action service account key
 
+concurrency:
+  group: ${{ github.ref }}
+
 jobs:
   build:
     name: Build

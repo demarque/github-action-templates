@@ -85,6 +85,9 @@ on:
         required: false
         description: Eventbus deploy key
 
+concurrency:
+  group: ${{ github.ref }}
+
 jobs:
   build:
     name: Build
