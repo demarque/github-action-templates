@@ -115,97 +115,97 @@ jobs:
           repository: ${{ inputs.REPOSITORY }}
           ref: ${{ inputs.REF }}
 
-      - name: GCloud Authentification
-        uses: google-github-actions/auth@v0.8.3
-        with:
-          credentials_json: ${{ secrets.GCP_SA_KEY }}
+  #     - name: GCloud Authentification
+  #       uses: google-github-actions/auth@v0.8.3
+  #       with:
+  #         credentials_json: ${{ secrets.GCP_SA_KEY }}
 
-      - name: Setup Cloud SDK
-        uses: google-github-actions/setup-gcloud@v0
+  #     - name: Setup Cloud SDK
+  #       uses: google-github-actions/setup-gcloud@v0
 
-      - name: Google Cloud Docker Auth
-        run: |-
-          gcloud auth configure-docker
+  #     - name: Google Cloud Docker Auth
+  #       run: |-
+  #         gcloud auth configure-docker
 
-      - name: Populate ssh-agent with Eventbus' deploy key
-        uses: webfactory/ssh-agent@v0.7.0
-        with:
-          ssh-private-key: ${{ secrets.EVENTBUS_DEPLOY_KEY }}
-        if: ${{ inputs.EVENTBUS_DEPLOY }}
+  #     - name: Populate ssh-agent with Eventbus' deploy key
+  #       uses: webfactory/ssh-agent@v0.7.0
+  #       with:
+  #         ssh-private-key: ${{ secrets.EVENTBUS_DEPLOY_KEY }}
+  #       if: ${{ inputs.EVENTBUS_DEPLOY }}
 
-      - name: Buil Image Tag
-        id: build_image_tag
-        run: |
-          for gcr_hostname in $(echo ${{ inputs.GCR_HOSTNAME }} | sed "s/, / /g")
-          do
-            IMAGE_TAG="-t ${gcr_hostname}/${{ inputs.GCP_PROJECT }}/${{ inputs.IMAGE }}:${{ inputs.GITHUB_SHA }} ${IMAGE_TAG}"
-          done
-          echo "Using docker image tag: ${IMAGE_TAG}"
-          echo "IMAGE_TAG=${IMAGE_TAG}" >> $GITHUB_OUTPUT
+  #     - name: Buil Image Tag
+  #       id: build_image_tag
+  #       run: |
+  #         for gcr_hostname in $(echo ${{ inputs.GCR_HOSTNAME }} | sed "s/, / /g")
+  #         do
+  #           IMAGE_TAG="-t ${gcr_hostname}/${{ inputs.GCP_PROJECT }}/${{ inputs.IMAGE }}:${{ inputs.GITHUB_SHA }} ${IMAGE_TAG}"
+  #         done
+  #         echo "Using docker image tag: ${IMAGE_TAG}"
+  #         echo "IMAGE_TAG=${IMAGE_TAG}" >> $GITHUB_OUTPUT
 
-      - name: Build Docker Image
-        env:
-          DOCKER_BUILDKIT: ${{ inputs.DOCKER_BUILDKIT }}
-        run: |
-          eval ${{ inputs.PRE_DOCKER_BUILD_COMMAND }}
-          docker build ${{ steps.build_image_tag.outputs.IMAGE_TAG }} --build-arg="GITHUB_TOKEN=${{ secrets.GH_CI_CD_TOKEN }}" ${{ inputs.BUILD_ARGS }} ${{ inputs.DOCKERFILE_PATH }} .
+  #     - name: Build Docker Image
+  #       env:
+  #         DOCKER_BUILDKIT: ${{ inputs.DOCKER_BUILDKIT }}
+  #       run: |
+  #         eval ${{ inputs.PRE_DOCKER_BUILD_COMMAND }}
+  #         docker build ${{ steps.build_image_tag.outputs.IMAGE_TAG }} --build-arg="GITHUB_TOKEN=${{ secrets.GH_CI_CD_TOKEN }}" ${{ inputs.BUILD_ARGS }} ${{ inputs.DOCKERFILE_PATH }} .
 
-      - name: Push Docker Image
-        run: |
-          for gcr_hostname in $(echo ${{ inputs.GCR_HOSTNAME }} | sed "s/, / /g")
-          do
-            docker push ${gcr_hostname}/${{ inputs.GCP_PROJECT }}/${{ inputs.IMAGE }}:${{ inputs.GITHUB_SHA }}
-          done
+  #     - name: Push Docker Image
+  #       run: |
+  #         for gcr_hostname in $(echo ${{ inputs.GCR_HOSTNAME }} | sed "s/, / /g")
+  #         do
+  #           docker push ${gcr_hostname}/${{ inputs.GCP_PROJECT }}/${{ inputs.IMAGE }}:${{ inputs.GITHUB_SHA }}
+  #         done
 
-      - name: Get Digest
-        id: get-digest
-        run: |
-          single_gcr_hostname=`echo ${{ inputs.GCR_HOSTNAME }} | sed 's/,.*//'`
-          docker inspect --format='{{index (split (index .RepoDigests 0) "@") 1}}' ${single_gcr_hostname}/${{ inputs.GCP_PROJECT }}/${{ inputs.IMAGE }}:${{ inputs.GITHUB_SHA }}
-          echo "digest=$(docker inspect --format='{{index (split (index .RepoDigests 0) "@") 1}}' ${single_gcr_hostname}/${{ inputs.GCP_PROJECT }}/${{ inputs.IMAGE }}:${{ inputs.GITHUB_SHA }})" >> $GITHUB_OUTPUT
+  #     - name: Get Digest
+  #       id: get-digest
+  #       run: |
+  #         single_gcr_hostname=`echo ${{ inputs.GCR_HOSTNAME }} | sed 's/,.*//'`
+  #         docker inspect --format='{{index (split (index .RepoDigests 0) "@") 1}}' ${single_gcr_hostname}/${{ inputs.GCP_PROJECT }}/${{ inputs.IMAGE }}:${{ inputs.GITHUB_SHA }}
+  #         echo "digest=$(docker inspect --format='{{index (split (index .RepoDigests 0) "@") 1}}' ${single_gcr_hostname}/${{ inputs.GCP_PROJECT }}/${{ inputs.IMAGE }}:${{ inputs.GITHUB_SHA }})" >> $GITHUB_OUTPUT
 
-  create-infra-pr:
-    name: Create infra PR
-    runs-on: ubuntu-20.04
-    needs: build
-    steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v3.1.0
-        with:
-          repository: demarque/demarque-infra
-          token: ${{ secrets.GH_CI_CD_TOKEN }}
-          ref: ${{ inputs.PR_REF }}
-          path: infra
+  # create-infra-pr:
+  #   name: Create infra PR
+  #   runs-on: ubuntu-20.04
+  #   needs: build
+  #   steps:
+  #     - name: Checkout Repository
+  #       uses: actions/checkout@v3.1.0
+  #       with:
+  #         repository: demarque/demarque-infra
+  #         token: ${{ secrets.GH_CI_CD_TOKEN }}
+  #         ref: ${{ inputs.PR_REF }}
+  #         path: infra
 
-      - name: Update Helm Chart Values
-        run: |
-          cd infra
-          MODULES="${{ inputs.MODULES }}"
+  #     - name: Update Helm Chart Values
+  #       run: |
+  #         cd infra
+  #         MODULES="${{ inputs.MODULES }}"
 
-          if [ -z "${MODULES}" ]; then
-            MODULES=${{ inputs.MODULE_ROOT }}/${{ inputs.MODULE_NAME }}
-          fi
-          for product_name in $(echo ${{ inputs.PRODUCT_NAME }} | sed "s/,/ /g")
-          do
-            for module in $(echo ${MODULES} | sed "s/, / /g")
-            do
-              sed -i 's/tag: [a-zA-Z0-9\.\:\@]*/tag: '${{ inputs.GITHUB_SHA }}'/g' modules/${module}/charts/${product_name}/${{ inputs.TARGET_ENV }}${{ inputs.TARGET_EXTRA_ARGS }}*.yaml
-              sed -i 's/  digest: sha256:[a-zA-Z0-9]*/  digest: '${{needs.build.outputs.digest-output}}'/g' modules/${module}/charts/${product_name}/${{ inputs.TARGET_ENV }}${{ inputs.TARGET_EXTRA_ARGS }}*.yaml
-            done
-          done
+  #         if [ -z "${MODULES}" ]; then
+  #           MODULES=${{ inputs.MODULE_ROOT }}/${{ inputs.MODULE_NAME }}
+  #         fi
+  #         for product_name in $(echo ${{ inputs.PRODUCT_NAME }} | sed "s/,/ /g")
+  #         do
+  #           for module in $(echo ${MODULES} | sed "s/, / /g")
+  #           do
+  #             sed -i 's/tag: [a-zA-Z0-9\.\:\@]*/tag: '${{ inputs.GITHUB_SHA }}'/g' modules/${module}/charts/${product_name}/${{ inputs.TARGET_ENV }}${{ inputs.TARGET_EXTRA_ARGS }}*.yaml
+  #             sed -i 's/  digest: sha256:[a-zA-Z0-9]*/  digest: '${{needs.build.outputs.digest-output}}'/g' modules/${module}/charts/${product_name}/${{ inputs.TARGET_ENV }}${{ inputs.TARGET_EXTRA_ARGS }}*.yaml
+  #           done
+  #         done
 
-      - name: Open Infra PR
-        uses: peter-evans/create-pull-request@v4.2.0
-        with:
-          token: ${{ secrets.GH_CI_CD_TOKEN }}
-          path: infra
-          committer: Github Actions <infra@demarque.com>
-          author: Github Actions <infra@demarque.com>
-          branch: deploy/${{ inputs.TARGET_ENV }}/${{ inputs.GITHUB_SHA }}
-          commit-message: "chore: ${{ inputs.TARGET_ENV }} - deploy ${{ inputs.REPOSITORY_NAME }} ${{ inputs.GITHUB_SHA }}"
-          title: ${{ inputs.TARGET_ENV }} - deploy ${{ inputs.REPOSITORY_NAME }} ${{ inputs.GITHUB_SHA }}
-          body: ${{ inputs.TARGET_ENV }} - deploy ${{ inputs.REPOSITORY_NAME }} ${{ inputs.GITHUB_SHA }}
-          # labels: automerge
+  #     - name: Open Infra PR
+  #       uses: peter-evans/create-pull-request@v4.2.0
+  #       with:
+  #         token: ${{ secrets.GH_CI_CD_TOKEN }}
+  #         path: infra
+  #         committer: Github Actions <infra@demarque.com>
+  #         author: Github Actions <infra@demarque.com>
+  #         branch: deploy/${{ inputs.TARGET_ENV }}/${{ inputs.GITHUB_SHA }}
+  #         commit-message: "chore: ${{ inputs.TARGET_ENV }} - deploy ${{ inputs.REPOSITORY_NAME }} ${{ inputs.GITHUB_SHA }}"
+  #         title: ${{ inputs.TARGET_ENV }} - deploy ${{ inputs.REPOSITORY_NAME }} ${{ inputs.GITHUB_SHA }}
+  #         body: ${{ inputs.TARGET_ENV }} - deploy ${{ inputs.REPOSITORY_NAME }} ${{ inputs.GITHUB_SHA }}
+  #         # labels: automerge
 
   # finalize:
   #   name: Finalize
