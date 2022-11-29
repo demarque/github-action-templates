@@ -1,0 +1,79 @@
+name: Google Cloud Platform Assets Snapshot
+
+on:
+  workflow_call:
+    inputs:
+      CONTENT_TYPE:
+        required: true
+        type: string
+        description: Content type to snapshot in google cloud platform
+      PROJECT:
+        required: true
+        type: string
+        description: Project to snapshot in google cloud platform
+      BUCKET:
+        required: true
+        type: string
+        description: Bucket with folder in google cloud platform to transfert the snapshot
+      REF:
+        required: false
+        type: string
+        default: ${{ github.ref }}
+        description: Branch/Commit/Tag to checkout
+      REPOSITORY:
+        required: false
+        type: string
+        default: ${{ github.repository }}
+        description: The repository to checkout
+    secrets:
+      GCP_SA_KEY:
+        required: true
+        description: Google cloud github action service account key
+      GH_CI_CD_TOKEN:
+        required: true
+        description: GitHub - De Marque CI/CD aka Jenkins personnal access tokens (classic)
+      SLACK_WEBHOOK_URL:
+        required: true
+        description: Product slack webhook url
+
+jobs:
+  launch_snapshot:
+    name: Launch Snapshot
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3.1.0
+        with:
+          repository: ${{ inputs.REPOSITORY }}
+          ref: ${{ inputs.REF }}
+
+      - name: GCloud Authentification
+        uses: google-github-actions/auth@v0.8.3
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Set up GCloud SDK
+        uses: google-github-actions/setup-gcloud@v0
+
+      - name: Launch Google Cloud Platform Assets Snapshot
+        run: gcloud asset export --content-type ${{ inputs.CONTENT_TYPE }} --project ${{ inputs.PROJECT }} --output-path "gs://${{ inputs.BUCKET }}"
+
+  finalize:
+    name: Finalize
+    runs-on: ubuntu-latest
+    needs: launch_snapshot
+    if: ${{ failure() }}
+
+    steps:
+      - name: Fetch Workflow Conclusion
+        uses: technote-space/workflow-conclusion-action@v3.0.2
+
+      - name: Notify
+        uses: 8398a7/action-slack@v3.14.0
+        with:
+          status: ${{ env.WORKFLOW_CONCLUSION }}
+          fields: repo,message,commit,author,action,eventName,ref,workflow
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_CI_CD_TOKEN }}
+          SLACK_WEBHOOK_URL: ${{ secrets.INFRA_SLACK_WEBHOOK_URL }}
