@@ -2,12 +2,32 @@ name: Automerge
 
 on:
   workflow_call:
+    inputs:
+      SHOULD_AUTOAPROUVE:
+        required: false
+        type: boolean
+        default: false
+        description: Tell if we should auto aprouve before auto merge
     secrets:
       GH_CI_CD_TOKEN:
         required: true
         description: GitHub - De Marque CI/CD aka Jenkins personnal access tokens (classic)
+      AUTO_APROUVER_TOKEN:
+        required: true
+        description: GitHub - Auto Aprouver Token (classic)
 
 jobs:
+  autoapprove:
+    runs-on: ubuntu-22.04
+    permissions:
+      pull-requests: write
+    steps:
+      - name: autoapprove
+        uses: hmarr/auto-approve-action@v3
+        with:
+          review-message: "Auto approve sync PRs to auto merge them"
+          github-token: ${{ secrets.AUTO_APROUVER_TOKEN }}
+
   automerge:
     runs-on: ubuntu-22.04
     steps:
