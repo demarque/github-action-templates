@@ -86,7 +86,7 @@ on:
         description: Eventbus deploy key
 
 concurrency:
-  group: ${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.ref }}
 
 jobs:
   build:

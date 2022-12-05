@@ -25,7 +25,7 @@ on:
         description: Product slack webhook url
 
 concurrency:
-  group: ${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.ref }}
 
 jobs:
   push-helm-charts:

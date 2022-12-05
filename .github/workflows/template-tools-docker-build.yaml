@@ -38,7 +38,7 @@ on:
         description: Google cloud github action service account key
 
 concurrency:
-  group: ${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.ref }}
 
 jobs:
   build:
