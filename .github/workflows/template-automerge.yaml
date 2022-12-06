@@ -15,7 +15,7 @@ jobs:
     runs-on: ubuntu-22.04
     permissions:
       pull-requests: write
-    if: github.actor == 'demarque-ci-cd' && contains(github.event.pull_request.labels.*.name, 'automerge')
+    if: github.actor == 'demarque-ci-cd' && contains(toJson(github.event.pull_request.labels.*.name), 'automerge')
     steps:
       - name: autoapprove
         uses: hmarr/auto-approve-action@v3
