@@ -17,8 +17,16 @@ on:
         description: GitHub - Auto Aprouver Token (classic)
 
 jobs:
+  sleep:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Sleep for 30 seconds
+        run: sleep 30s
+        shell: bash
+
   autoapprove:
     runs-on: ubuntu-22.04
+    needs: sleep
     permissions:
       pull-requests: write
     if: github.actor == 'demarque-ci-cd' && github.event.label.name == 'automerge'
