@@ -2,12 +2,6 @@ name: Automerge
 
 on:
   workflow_call:
-    inputs:
-      SHOULD_AUTOAPROUVE:
-        required: false
-        type: boolean
-        default: false
-        description: Tell if we should auto aprouve before auto merge
     secrets:
       GH_CI_CD_TOKEN:
         required: true
