@@ -20,7 +20,7 @@ jobs:
       - name: autoapprove
         uses: hmarr/auto-approve-action@v3
         with:
-          review-message: "Auto approve sync PRs to auto merge them"
+          review-message: "Auto-approved since the PR matched all [conditions](https://github.com/demarque/github-action-templates/blob/main/.github/workflows/template-automerge.yaml#L18) :white_check_mark:"
           github-token: ${{ secrets.AUTO_APROUVER_TOKEN }}
 
   automerge:
