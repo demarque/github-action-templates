@@ -201,7 +201,7 @@ jobs:
           path: infra
           committer: Github Actions <infra@demarque.com>
           author: Github Actions <infra@demarque.com>
-          branch: deploy/${{ inputs.TARGET_ENV }}/${{ inputs.GITHUB_SHA }}
+          branch: deploy/${{ inputs.IMAGE }}/${{ inputs.TARGET_ENV }}/${{ inputs.GITHUB_SHA }}
           commit-message: "chore: ${{ inputs.TARGET_ENV }} - deploy ${{ inputs.IMAGE }} ${{ inputs.GITHUB_SHA }}"
           title: ${{ inputs.TARGET_ENV }} - deploy ${{ inputs.IMAGE }} ${{ inputs.GITHUB_SHA }}
           body: ${{ inputs.TARGET_ENV }} - deploy ${{ inputs.IMAGE }} ${{ inputs.GITHUB_SHA }}
